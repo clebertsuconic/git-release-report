@@ -23,8 +23,10 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.diff.DiffEntry;
@@ -56,6 +58,8 @@ public class GitParser {
    final String jiraBrowseURI;
    final String githubURI;
 
+   final HashSet<String> totalJiras = new HashSet<>();
+
    public GitParser(File folder, String jira, String jiraBrowseURI, String githubURI) {
       this.folder = folder;
       this.jira = jira;
@@ -76,6 +80,37 @@ public class GitParser {
       String text = commit.getId().getName().substring(0, 6);
 
       return makeALink(text, githubURI + "commit/" + commit.getName());
+   }
+
+
+   public static String[] extractJIRAs(String jira, String message) {
+      HashSet list = new HashSet(1);
+      for (int jiraIndex = message.indexOf(jira); jiraIndex >= 0; jiraIndex = message.indexOf(jira, jiraIndex)) {
+         StringBuffer jiraID = new StringBuffer(jira);
+
+         for (int i = jiraIndex + jira.length(); i < message.length(); i++) {
+            char charAt = message.charAt(i);
+            if (charAt >= '0' && charAt <= '9') {
+               jiraID.append(charAt);
+            } else {
+               break;
+            }
+         }
+         list.add(jiraID.toString());
+         jiraIndex ++;
+      }
+
+      return (String[])list.toArray(new String[list.size()]);
+   }
+
+   public String prettyCommitMessage(String message) {
+      String[] jiras = extractJIRAs(jira, message);
+      for (int i = 0; i < jiras.length; i++) {
+         totalJiras.add(jiras[i]);
+         message = message.replace(jiras[i], makeALink(jiras[i], jiraBrowseURI + jiras[i]));
+      }
+
+      return message;
    }
 
    public void parse(PrintStream output, String from, String to) throws Exception {
@@ -117,13 +152,19 @@ public class GitParser {
             // this piece of code is a piece of garbage anyways :) only intended for reporting!
             interestingChanges[i] = new StringBuffer();
          }
+
          RevCommit commit = commits.next();
+
          if (oldCommit != null) {
             output.print("<tr>");
             output.print("<td>" + commitCell(commit) + " </td>");
             output.print("<td>" + dateFormat.format(new Date(commit.getCommitTime())));
             output.print("<td>" + commit.getAuthorIdent().getName() + "</td>");
-            output.print("<td>" + commit.getShortMessage() + "</td>");
+            output.print("<td>" + prettyCommitMessage(commit.getShortMessage()) + "</td>");
+
+            if (commit.getShortMessage().contains("ARTEMIS-1532 Enable tests which are unintentionally skipped by Surefire")) {
+               System.out.println("I'm here!!!");
+            }
 
             oldTreeIter.reset(reader, oldCommit.getTree());
             newTreeIter.reset(reader, commit.getTree());
@@ -142,6 +183,12 @@ public class GitParser {
             int addition = 0, deletion = 0, replacement = 0;
 
             for (DiffEntry entry : diffList) {
+               String path = entry.getNewPath();
+               if (path.equals("/dev/null")) {
+                  // this could happen on deleting a whole file
+                  path = entry.getOldPath();
+               }
+
                FileHeader header = diffFormatter.toFileHeader(entry);
                //output.println("header::" + header);
                //output.println("changed " + header.getNewPath());
@@ -151,15 +198,16 @@ public class GitParser {
 
                   boolean interested = false;
 
+
                   for (int i = 0; i < interestingFolder.size(); i++) {
-                     if (entry.getNewPath().startsWith(interestingFolder.get(i))) {
+                    if (path.startsWith(interestingFolder.get(i))) {
                         interested = true;
                         File file = new File(entry.getNewPath());
                         interestingChanges[i].append(makeALink(file.getName(), githubURI + "blob/" + commit.getId().getName() + "/" + entry.getNewPath()) + " ");
                      }
                   }
 
-                  if (!interested) {
+                  if (!interested && path.endsWith(".java")) {
 
                      while (editsIterator.hasNext()) {
                         Edit edit = editsIterator.next();
@@ -171,7 +219,7 @@ public class GitParser {
                               deletion += (edit.getEndA() - edit.getBeginA() + 1);
                               break;
                            case REPLACE:
-                              replacement += (edit.getEndB() - edit.getBeginA() + 1);
+                              replacement += (edit.getEndB() - edit.getBeginB() + 1);
                               break;
                         }
                      }
@@ -194,6 +242,30 @@ public class GitParser {
 
       output.println("</body></html>");
 
+   }
+
+   public List<String> getInterestingFolder() {
+      return interestingFolder;
+   }
+
+   public File getFolder() {
+      return folder;
+   }
+
+   public String getJira() {
+      return jira;
+   }
+
+   public String getJiraBrowseURI() {
+      return jiraBrowseURI;
+   }
+
+   public String getGithubURI() {
+      return githubURI;
+   }
+
+   public HashSet<String> getTotalJiras() {
+      return totalJiras;
    }
 
    private static AbstractTreeIterator prepareTree(Git git, RevWalk walk, RevCommit commit) throws Exception {
