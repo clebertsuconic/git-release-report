@@ -34,7 +34,7 @@ public class ArtemisParser {
             System.exit(-1);
          }
 
-         GitParser parser = new GitParser(new File(arg[0]), "ARTEMIS-", "https://issues.apache.org/jira/browse/", "https://github.com/apache/activemq-artemis/");
+         GitParser parser = new GitParser(new File(arg[0]), "ARTEMIS-", "https://issues.apache.org/jira/browse/", "https://github.com/apache/activemq-artemis/", ".java");
          parser.addInterestingfolder("tests/").addInterestingfolder("docs/");
          PrintStream stream = new PrintStream(new FileOutputStream("/tmp/report.html"));
          parser.parse(stream, arg[1], arg[2]);

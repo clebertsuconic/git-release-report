@@ -46,7 +46,7 @@ public class JiraReplaceTest {
 
    @Test
    public void replaceURI() {
-      GitParser parser = new GitParser(new File("../"),"ARTEMIS-", "https://issues.apache.org/jira/browse/", "https://github.com/apache/activemq-artemis/");
+      GitParser parser = new GitParser(new File("../"),"ARTEMIS-", "https://issues.apache.org/jira/browse/", "https://github.com/apache/activemq-artemis/", ".java");
       String output = parser.prettyCommitMessage("ARTEMIS-123");
       Assert.assertEquals("<a href='" + parser.getJiraBrowseURI() + "ARTEMIS-123'>ARTEMIS-123</a>", output);
    }
