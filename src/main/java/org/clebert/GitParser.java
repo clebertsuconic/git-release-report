@@ -29,6 +29,8 @@ import java.util.List;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.diff.Edit;
+import org.eclipse.jgit.diff.EditList;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.ObjectReader;
 import org.eclipse.jgit.patch.FileHeader;
@@ -40,7 +42,6 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
-import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 /**
@@ -108,9 +109,14 @@ public class GitParser {
 
       DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
-      String interestingChanges[] = new String[interestingFolder.size()];
+      StringBuffer interestingChanges[] = new StringBuffer[interestingFolder.size()];
 
       while (commits.hasNext()) {
+         for (int i = 0; i < interestingFolder.size(); i++) {
+            // the method to cleanup a stringbuffer is cpu intensive. sorry for the extra garbage
+            // this piece of code is a piece of garbage anyways :) only intended for reporting!
+            interestingChanges[i] = new StringBuffer();
+         }
          RevCommit commit = commits.next();
          if (oldCommit != null) {
             output.print("<tr>");
@@ -122,29 +128,65 @@ public class GitParser {
             oldTreeIter.reset(reader, oldCommit.getTree());
             newTreeIter.reset(reader, commit.getTree());
 
-//
-//            TreeWalk treewalk = new TreeWalk(git.getRepository());
-//            treewalk.setRecursive(true);
-//            treewalk.addTree(commit.getTree());
-//
-//            while (treewalk.next()) {
-//               System.out.println("PathString::" + treewalk.getPathString());
-//            }
-//
+            //
+            //            TreeWalk treewalk = new TreeWalk(git.getRepository());
+            //            treewalk.setRecursive(true);
+            //            treewalk.addTree(commit.getTree());
+            //
+            //            while (treewalk.next()) {
+            //               System.out.println("PathString::" + treewalk.getPathString());
+            //            }
+            //
             List<DiffEntry> diffList = git.diff().setOldTree(oldTreeIter).setNewTree(newTreeIter).call();
 
+            int addition = 0, deletion = 0, replacement = 0;
+
             for (DiffEntry entry : diffList) {
-               System.out.println("Entry::" + entry);
                FileHeader header = diffFormatter.toFileHeader(entry);
                //output.println("header::" + header);
                //output.println("changed " + header.getNewPath());
                for (HunkHeader hunk : header.getHunks()) {
-//                  System.out.println("hunk::" + hunk);
+                  EditList edits = hunk.toEditList();
+                  Iterator<Edit> editsIterator = edits.iterator();
+
+                  boolean interested = false;
+
+                  for (int i = 0; i < interestingFolder.size(); i++) {
+                     if (entry.getNewPath().startsWith(interestingFolder.get(i))) {
+                        interested = true;
+                        File file = new File(entry.getNewPath());
+                        interestingChanges[i].append(makeALink(file.getName(), githubURI + "blob/" + commit.getId().getName() + "/" + entry.getNewPath()) + " ");
+                     }
+                  }
+
+                  if (!interested) {
+
+                     while (editsIterator.hasNext()) {
+                        Edit edit = editsIterator.next();
+                        switch (edit.getType()) {
+                           case INSERT:
+                              addition += (edit.getEndB() - edit.getBeginB() + 1);
+                              break;
+                           case DELETE:
+                              deletion += (edit.getEndA() - edit.getBeginA() + 1);
+                              break;
+                           case REPLACE:
+                              replacement += (edit.getEndB() - edit.getBeginA() + 1);
+                              break;
+                        }
+                     }
+                  }
+                  //                  System.out.println("hunk::" + hunk);
                   //output.println("hunk:: " + hunk);
                   // System.out.println("At " + hunk.getNewStartLine(), hunk.ge)
                }
             }
-            output.print("</tr>");
+            output.print("<td>" + addition + "</td><td>" + replacement + "</td><td>" + deletion + "</td>");
+
+            for (int i = 0; i < interestingChanges.length; i++) {
+               output.print("<td>" + interestingChanges[i].toString() + "</td>");
+            }
+            output.println("</tr>");
          }
          oldCommit = commit;
 
