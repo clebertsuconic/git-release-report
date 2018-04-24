@@ -29,8 +29,8 @@ public class ArtemisParser {
 
    public static void main(String arg[]) {
       try {
-         if (arg.length < 3) {
-            System.err.println("use Parser <repository> <from> <to>");
+         if (arg.length < 4) {
+            System.err.println("use Parser <repository> <reportOutput> <from> <to>");
             System.exit(-1);
          }
 
@@ -38,8 +38,8 @@ public class ArtemisParser {
             setSourceSuffix(".java", ".md", ".c", ".sh", ".groovy").
             setSampleJQL("https://issues.apache.org/jira/issues/?jql=project%20%3D%20ARTEMIS%20AND%20key%20in%20");
          parser.addInterestingfolder("test").addInterestingfolder("docs/");
-         PrintStream stream = new PrintStream(new FileOutputStream("/tmp/report.html"));
-         parser.parse(stream, arg[1], arg[2]);
+         PrintStream stream = new PrintStream(new FileOutputStream(arg[1]));
+         parser.parse(stream, arg[2], arg[3]);
 
       } catch (Exception e) {
          e.printStackTrace();
