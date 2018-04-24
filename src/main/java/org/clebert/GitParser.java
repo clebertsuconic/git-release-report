@@ -197,7 +197,7 @@ public class GitParser {
 
          output.print("<tr>");
          output.print("<td>" + commitCell(commit) + " </td>");
-         output.print("<td>" + dateFormat.format(new Date(commit.getCommitTime())));
+         output.print("<td>" + dateFormat.format(commit.getAuthorIdent().getWhen()) + "</td>");
          output.print("<td>" + commit.getAuthorIdent().getName() + "</td>");
          output.print("<td>" + prettyCommitMessage(commit.getShortMessage()) + "</td>");
 
