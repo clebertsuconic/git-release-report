@@ -172,6 +172,10 @@ public class GitParser {
 
       output.println("<html><body>");
 
+      output.println("<br/>");
+      output.println("<h4>Release report " + from + "(" + fromCommit.getId().getName() + ") and " + to + "(" + toCommit.getId().getName() + ")</h4>");
+      output.println("<br/>");
+
       output.println("<table border=1 style=\"width:100%\">");
 
       DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
