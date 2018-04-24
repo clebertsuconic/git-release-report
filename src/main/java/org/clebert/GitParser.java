@@ -56,20 +56,45 @@ public class GitParser {
    final String jira;
    final String jiraBrowseURI;
    final String githubURI;
-   final String sourceSuffix;
+   String[] sourceSuffix;
+   // JQL used to list all JIRAs here
+   String sampleJQL;
 
    final HashSet<String> totalJiras = new HashSet<>();
 
-   public GitParser(File folder, String jira, String jiraBrowseURI, String githubURI, String sourceSuffix) {
+   public GitParser(File folder, String jira, String jiraBrowseURI, String githubURI) {
       this.folder = folder;
       this.jira = jira;
       this.jiraBrowseURI = jiraBrowseURI;
       this.githubURI = githubURI;
-      this.sourceSuffix = sourceSuffix;
    }
 
    public GitParser addInterestingfolder(String folder) {
       interestingFolder.add(folder);
+      return this;
+   }
+
+   public String getSampleJQL() {
+      return sampleJQL;
+   }
+
+   /**
+    * A JQL used to list all JIRAs
+    * Example: https://issues.apache.org/jira/issues/?jql=project%20%3D%20ARTEMIS%20AND%20key%20in%20
+    *
+    * GitParser will add (JIRA1, JIRA2... JIRAN) to your list
+    * */
+   public GitParser setSampleJQL(String sampleJQL) {
+      this.sampleJQL = sampleJQL;
+      return this;
+   }
+
+   public String[] getSourceSuffix() {
+      return sourceSuffix;
+   }
+
+   public GitParser setSourceSuffix(String... sourceSuffix) {
+      this.sourceSuffix = sourceSuffix;
       return this;
    }
 
@@ -78,7 +103,7 @@ public class GitParser {
    }
 
    private String commitCell(RevCommit commit) {
-      String text = commit.getId().getName().substring(0, 6);
+      String text = commit.getId().getName().substring(0, 7);
 
       return makeALink(text, githubURI + "commit/" + commit.getName());
    }
@@ -117,7 +142,7 @@ public class GitParser {
       Git git = Git.open(folder);
       RevWalk walk = new RevWalk(git.getRepository());
 
-      ObjectId fromID = git.getRepository().resolve(from + "^1"); // ONE COMMIT BEFORE THE SELECTED AS WE NEED DIFFS
+      ObjectId fromID = git.getRepository().resolve(from); // ONE COMMIT BEFORE THE SELECTED AS WE NEED DIFFS
       ObjectId toID = git.getRepository().resolve(to);
 
       RevCommit fromCommit = walk.parseCommit(fromID);
@@ -136,8 +161,6 @@ public class GitParser {
       CanonicalTreeParser oldTreeIter = new CanonicalTreeParser();
       CanonicalTreeParser newTreeIter = new CanonicalTreeParser();
 
-      RevCommit oldCommit = null;
-
       output.println("<html><body>");
 
       output.println("<table border=1 style=\"width:100%\">");
@@ -155,106 +178,132 @@ public class GitParser {
 
          RevCommit commit = commits.next();
 
-         if (oldCommit != null) {
-            output.print("<tr>");
-            output.print("<td>" + commitCell(commit) + " </td>");
-            output.print("<td>" + dateFormat.format(new Date(commit.getCommitTime())));
-            output.print("<td>" + commit.getAuthorIdent().getName() + "</td>");
-            output.print("<td>" + prettyCommitMessage(commit.getShortMessage()) + "</td>");
+         output.print("<tr>");
+         output.print("<td>" + commitCell(commit) + " </td>");
+         output.print("<td>" + dateFormat.format(new Date(commit.getCommitTime())));
+         output.print("<td>" + commit.getAuthorIdent().getName() + "</td>");
+         output.print("<td>" + prettyCommitMessage(commit.getShortMessage()) + "</td>");
 
-            oldTreeIter.reset(reader, oldCommit.getTree());
-            newTreeIter.reset(reader, commit.getTree());
+         oldTreeIter.reset(reader, commit.getParent(0).getTree());
+         newTreeIter.reset(reader, commit.getTree());
 
-            List<DiffEntry> diffList = git.diff().setOldTree(oldTreeIter).setNewTree(newTreeIter).call();
+         List<DiffEntry> diffList = git.diff().setOldTree(oldTreeIter).setNewTree(newTreeIter).call();
 
-            int addition = 0, deletion = 0, replacement = 0;
+         int addition = 0, deletion = 0, replacement = 0;
 
-            for (DiffEntry entry : diffList) {
-               String path = entry.getNewPath();
-               if (path.equals("/dev/null")) {
-                  // this could happen on deleting a whole file
-                  path = entry.getOldPath();
-               }
+         for (DiffEntry entry : diffList) {
+            String path = entry.getNewPath();
+            if (path.equals("/dev/null")) {
+               // this could happen on deleting a whole file
+               path = entry.getOldPath();
+            }
 
-               boolean interested = false;
+            boolean interested = false;
 
-               FileHeader header = diffFormatter.toFileHeader(entry);
+            FileHeader header = diffFormatter.toFileHeader(entry);
 
-               for (int i = 0; i < interestingFolder.size(); i++) {
-                  if (path.startsWith(interestingFolder.get(i)) && path.endsWith(sourceSuffix)) {
-                     interested = true;
-                     File file = new File(path);
-                     if (entry.getNewPath().equals("/dev/null")) {
-                        interestingChanges[i].append(file.getName() + " "); // deleted, there's no link
-                     } else {
+            for (int i = 0; i < interestingFolder.size(); i++) {
+               if (path.contains(interestingFolder.get(i)) && isSource(path)) {
+                  interested = true;
+                  File file = new File(path);
+                  if (entry.getNewPath().equals("/dev/null")) {
+                     interestingChanges[i].append(file.getName() + " "); // deleted, there's no link
+                  } else {
 
-                        int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
-                        for (HunkHeader hunk : header.getHunks()) {
-                           EditList edits = hunk.toEditList();
-                           Iterator<Edit> editsIterator = edits.iterator();
-                           while (editsIterator.hasNext()) {
-                              Edit edit = editsIterator.next();
-                              switch (edit.getType()) {
-                                 case INSERT:
-                                 case REPLACE:
-                                    min = Math.min(min, edit.getBeginB());
-                                    max = Math.max(max, edit.getEndB());
-                                    break;
-                                 case DELETE:
-                                    min = Math.min(min, edit.getBeginA());
-                                    max = Math.max(max, edit.getEndA());
-                                    break;
-                              }
-                           }
-                        }
-
-                        interestingChanges[i].append(makeALink(file.getName(), githubURI + "blob/" + commit.getId().getName() + "/" + path + "#L" + (min + 1) + "-" + (max + 1)) + " ");
-                     }
-                  }
-               }
-
-
-               if (!interested && path.endsWith(sourceSuffix)) {
-                  for (HunkHeader hunk : header.getHunks()) {
-                     EditList edits = hunk.toEditList();
-                     Iterator<Edit> editsIterator = edits.iterator();
-
-                     if (!interested && path.endsWith(".java")) {
-
+                     int min = Integer.MAX_VALUE, max = Integer.MIN_VALUE;
+                     for (HunkHeader hunk : header.getHunks()) {
+                        EditList edits = hunk.toEditList();
+                        Iterator<Edit> editsIterator = edits.iterator();
                         while (editsIterator.hasNext()) {
                            Edit edit = editsIterator.next();
                            switch (edit.getType()) {
                               case INSERT:
-                                 addition += (edit.getEndB() - edit.getBeginB() + 1);
+                              case REPLACE:
+                                 min = Math.min(min, edit.getBeginB() + 1); // the begin is always +1
+                                 max = Math.max(max, edit.getEndB());
                                  break;
                               case DELETE:
-                                 deletion += (edit.getEndA() - edit.getBeginA() + 1);
-                                 break;
-                              case REPLACE:
-                                 replacement += (edit.getEndB() - edit.getBeginB() + 1);
+                                 min = Math.min(min, edit.getBeginA() + 1); // the begin is always +1
+                                 max = Math.max(max, edit.getEndA());
                                  break;
                            }
                         }
                      }
-                     //                  System.out.println("hunk::" + hunk);
-                     //output.println("hunk:: " + hunk);
-                     // System.out.println("At " + hunk.getNewStartLine(), hunk.ge)
+
+                     String linkText = makeALink(file.getName(), githubURI + "blob/" + commit.getId().getName() + "/" + path + "#L" + (min) + "-L" + (max));
+                     interestingChanges[i].append(linkText + " ");
                   }
                }
             }
-            output.print("<td>" + addition + "</td><td>" + replacement + "</td><td>" + deletion + "</td>");
 
-            for (int i = 0; i < interestingChanges.length; i++) {
-               output.print("<td>" + interestingChanges[i].toString() + "</td>");
+            if (!interested && isSource(path)) {
+               for (HunkHeader hunk : header.getHunks()) {
+                  EditList edits = hunk.toEditList();
+                  Iterator<Edit> editsIterator = edits.iterator();
+
+                  if (!interested && path.endsWith(".java")) {
+
+                     while (editsIterator.hasNext()) {
+                        Edit edit = editsIterator.next();
+                        switch (edit.getType()) {
+                           case INSERT:
+                              addition += (edit.getEndB() - edit.getBeginB() + 1);
+                              break;
+                           case DELETE:
+                              deletion += (edit.getEndA() - edit.getBeginA() + 1);
+                              break;
+                           case REPLACE:
+                              replacement += (edit.getEndB() - edit.getBeginB() + 1);
+                              break;
+                        }
+                     }
+                  }
+                  //                  System.out.println("hunk::" + hunk);
+                  //output.println("hunk:: " + hunk);
+                  // System.out.println("At " + hunk.getNewStartLine(), hunk.ge)
+               }
             }
-            output.println("</tr>");
          }
-         oldCommit = commit;
+         output.print("<td>" + addition + "</td><td>" + replacement + "</td><td>" + deletion + "</td>");
 
+         for (int i = 0; i < interestingChanges.length; i++) {
+            output.print("<td>" + interestingChanges[i].toString() + "</td>");
+         }
+         output.println("</tr>");
+
+      }
+
+      output.println("</table>");
+
+      if (sampleJQL != null && !totalJiras.isEmpty()) {
+         output.println();
+         output.print("<a href='" + sampleJQL + "(");
+
+         Iterator<String> jiraIterator = totalJiras.iterator();
+         StringBuffer bufferJiras = new StringBuffer();
+
+         do {
+            bufferJiras.append(jiraIterator.next());
+            if (jiraIterator.hasNext()) {
+               bufferJiras.append("%2C");
+            }
+         } while (jiraIterator.hasNext());
+
+         output.print(bufferJiras.toString());
+         output.println(")'>" + totalJiras.size() + " JIRAS on this Report</a>");
       }
 
       output.println("</body></html>");
 
+   }
+
+   private boolean isSource(String path) {
+      for (int i = 0; i < sourceSuffix.length; i++) {
+         if (path.endsWith(sourceSuffix[i])) {
+            return true;
+         }
+      }
+      return false;
    }
 
    public List<String> getInterestingFolder() {
