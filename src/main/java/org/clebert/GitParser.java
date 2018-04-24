@@ -83,7 +83,7 @@ public class GitParser {
     * Example: https://issues.apache.org/jira/issues/?jql=project%20%3D%20ARTEMIS%20AND%20key%20in%20
     *
     * GitParser will add (JIRA1, JIRA2... JIRAN) to your list
-    * */
+    */
    public GitParser setSampleJQL(String sampleJQL) {
       this.sampleJQL = sampleJQL;
       return this;
@@ -161,6 +161,15 @@ public class GitParser {
       CanonicalTreeParser oldTreeIter = new CanonicalTreeParser();
       CanonicalTreeParser newTreeIter = new CanonicalTreeParser();
 
+
+      output.println("<head>");
+      output.println("<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\"/>");
+      //output.println("<link type=\"text/css\" rel=\"stylesheet\" href=\"http://activemq.apache.org/artemis/styles/impact/css/site.css\"/>");
+      output.println("<link type=\"text/css\" rel=\"stylesheet\" href=\"https://assets-cdn.github.com/assets/frameworks-592c4aa40e940d1b0607a3cf272916ff.css\"/>");
+      output.println("</head>");
+
+
+
       output.println("<html><body>");
 
       output.println("<table border=1 style=\"width:100%\">");
@@ -168,6 +177,14 @@ public class GitParser {
       DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
       StringBuffer interestingChanges[] = new StringBuffer[interestingFolder.size()];
+
+      output.print("<tr><th>Commit</th><th>Date</th><th>Author</th><th>Short Message</th><th>Adds</th><th>Updates</th><th>Deletes</th>");
+
+      for (int i = 0; i < interestingFolder.size(); i++) {
+         output.print("<th>" + interestingFolder.get(i) + "</th>");
+      }
+
+      output.println("</tr>");
 
       while (commits.hasNext()) {
          for (int i = 0; i < interestingFolder.size(); i++) {
@@ -276,7 +293,7 @@ public class GitParser {
       output.println("</table>");
 
       if (sampleJQL != null && !totalJiras.isEmpty()) {
-         output.println();
+         output.println("<br><h2>");
          output.print("<a href='" + sampleJQL + "(");
 
          Iterator<String> jiraIterator = totalJiras.iterator();
@@ -290,7 +307,7 @@ public class GitParser {
          } while (jiraIterator.hasNext());
 
          output.print(bufferJiras.toString());
-         output.println(")'>" + totalJiras.size() + " JIRAS on this Report</a>");
+         output.println(")'>" + totalJiras.size() + " JIRAS on this Report</a></h2>");
       }
 
       output.println("</body></html>");
