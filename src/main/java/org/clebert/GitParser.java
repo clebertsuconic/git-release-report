@@ -190,6 +190,7 @@ public class GitParser {
 
       output.println("</tr>");
 
+      int numberOfCommits = 0;
       while (commits.hasNext()) {
          for (int i = 0; i < interestingFolder.size(); i++) {
             // the method to cleanup a stringbuffer is cpu intensive. sorry for the extra garbage
@@ -198,6 +199,8 @@ public class GitParser {
          }
 
          RevCommit commit = commits.next();
+
+         numberOfCommits++;
 
          output.print("<tr>");
          output.print("<td>" + commitCell(commit) + " </td>");
@@ -296,6 +299,7 @@ public class GitParser {
 
       output.println("</table>");
 
+      output.println("<br/><h2>" + numberOfCommits + " Commits on this report</h2>");
       if (sampleJQL != null && !totalJiras.isEmpty()) {
          output.println("<br><h2>");
          output.print("<a href='" + sampleJQL + "(");
@@ -313,6 +317,7 @@ public class GitParser {
          output.print(bufferJiras.toString());
          output.println(")'>" + totalJiras.size() + " JIRAS on this Report</a></h2>");
       }
+
 
       output.println("</body></html>");
 
