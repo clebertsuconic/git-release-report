@@ -254,8 +254,11 @@ public class GitParser {
                         }
                      }
 
+                     String fullHistory = makeALink("(+)", githubURI + "/commits/" + commit.getId().getName() + "/" + path);
+
                      String linkText = makeALink(file.getName(), githubURI + "blob/" + commit.getId().getName() + "/" + path + "#L" + (min) + "-L" + (max));
-                     interestingChanges[i].append(linkText + " ");
+
+                     interestingChanges[i].append(linkText + fullHistory + " ");
                   }
                }
             }
