@@ -319,6 +319,8 @@ public class GitParser {
       }
 
 
+      output.println("<br>Generated with <a href='https://github.com/clebertsuconic/git-release-report'> git-release-report</a>");
+
       output.println("</body></html>");
 
    }
