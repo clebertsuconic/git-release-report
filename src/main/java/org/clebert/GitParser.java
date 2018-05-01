@@ -17,12 +17,15 @@
 
 package org.clebert;
 
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.PrintStream;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -138,6 +141,24 @@ public class GitParser {
       return message;
    }
 
+   private void copy(InputStream is, OutputStream os) throws IOException {
+      byte[] buffer = new byte[1024 * 4];
+      int c = is.read(buffer);
+      while (c >= 0) {
+         os.write(buffer, 0, c);
+         c = is.read(buffer);
+      }
+   }
+
+   private String readString(String fileName) throws Exception {
+      ByteArrayOutputStream out = new ByteArrayOutputStream();
+      try (InputStream in = GitParser.class.getResourceAsStream(fileName)) {
+         copy(in, out);
+      }
+
+      return new String(out.toByteArray());
+   }
+
    public void parse(PrintStream output, String from, String to) throws Exception {
       Git git = Git.open(folder);
       RevWalk walk = new RevWalk(git.getRepository());
@@ -161,34 +182,29 @@ public class GitParser {
       CanonicalTreeParser oldTreeIter = new CanonicalTreeParser();
       CanonicalTreeParser newTreeIter = new CanonicalTreeParser();
 
+      output.println(readString("header.txt"));
 
-      output.println("<head>");
-      output.println("<meta content=\"text/html; charset=utf-8\" http-equiv=\"Content-Type\"/>");
-      //output.println("<link type=\"text/css\" rel=\"stylesheet\" href=\"http://activemq.apache.org/artemis/styles/impact/css/site.css\"/>");
-      output.println("<link type=\"text/css\" rel=\"stylesheet\" href=\"https://assets-cdn.github.com/assets/frameworks-592c4aa40e940d1b0607a3cf272916ff.css\"/>");
-      output.println("</head>");
-
-
-
-      output.println("<html><body>");
+      output.println("<body>");
 
       output.println("<br/>");
       output.println("<h4>Release report " + from + "(" + fromCommit.getId().getName() + ") and " + to + "(" + toCommit.getId().getName() + ")</h4>");
       output.println("<br/>");
 
-      output.println("<table border=1 style=\"width:100%\">");
+      output.println("<table id=\"gitreport\" class=\"display\">");
 
       DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
 
       StringBuffer interestingChanges[] = new StringBuffer[interestingFolder.size()];
 
-      output.print("<tr><th>Commit</th><th>Date</th><th>Author</th><th>Short Message</th><th>Adds</th><th>Updates</th><th>Deletes</th>");
+      output.print("<thead><tr><th>#</th><th>Commit</th><th>Date</th><th>Author</th><th>Short Message</th><th>Adds</th><th>Updates</th><th>Deletes</th>");
 
       for (int i = 0; i < interestingFolder.size(); i++) {
          output.print("<th>" + interestingFolder.get(i) + "</th>");
       }
 
-      output.println("</tr>");
+      output.println("</tr></thead>");
+
+      output.println("<tbody>");
 
       int numberOfCommits = 0;
       while (commits.hasNext()) {
@@ -203,6 +219,7 @@ public class GitParser {
          numberOfCommits++;
 
          output.print("<tr>");
+         output.println("<td>" + makeALink(numberOfCommits + "", githubURI + "commit/" + commit.getName()) + "</td>");
          output.print("<td>" + commitCell(commit) + " </td>");
          output.print("<td>" + dateFormat.format(commit.getAuthorIdent().getWhen()) + "</td>");
          output.print("<td>" + commit.getAuthorIdent().getName() + "</td>");
@@ -274,13 +291,13 @@ public class GitParser {
                         Edit edit = editsIterator.next();
                         switch (edit.getType()) {
                            case INSERT:
-                              addition += (edit.getEndB() - edit.getBeginB() + 1);
+                              addition += (edit.getEndB() - edit.getBeginB());
                               break;
                            case DELETE:
-                              deletion += (edit.getEndA() - edit.getBeginA() + 1);
+                              deletion += (edit.getEndA() - edit.getBeginA());
                               break;
                            case REPLACE:
-                              replacement += (edit.getEndB() - edit.getBeginB() + 1);
+                              replacement += (edit.getEndB() - edit.getBeginB());
                               break;
                         }
                      }
@@ -300,7 +317,7 @@ public class GitParser {
 
       }
 
-      output.println("</table>");
+      output.println("</tbody></table>");
 
       output.println("<br/><h2>" + numberOfCommits + " Commits on this report</h2>");
       if (sampleJQL != null && !totalJiras.isEmpty()) {
@@ -320,7 +337,6 @@ public class GitParser {
          output.print(bufferJiras.toString());
          output.println(")'>" + totalJiras.size() + " JIRAS on this Report</a></h2>");
       }
-
 
       output.println("<br>Generated with <a href='https://github.com/clebertsuconic/git-release-report'> git-release-report</a>");
 
