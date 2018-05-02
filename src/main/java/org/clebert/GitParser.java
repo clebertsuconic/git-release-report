@@ -319,7 +319,6 @@ public class GitParser {
 
       output.println("</tbody></table>");
 
-      output.println("<br/><h2>" + numberOfCommits + " Commits on this report</h2>");
       if (sampleJQL != null && !totalJiras.isEmpty()) {
          output.println("<br><h2>");
          output.print("<a href='" + sampleJQL + "(");
