@@ -17,12 +17,16 @@
 
 package org.clebert;
 
+import javax.json.Json;
+import javax.json.JsonObject;
+import javax.json.JsonString;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.net.URL;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -48,6 +52,8 @@ import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
+import org.apache.johnzon.core.*;
+
 /**
  * @author Clebert Suconic
  */
@@ -59,9 +65,11 @@ public class GitParser {
    final String jira;
    final String jiraBrowseURI;
    final String githubURI;
+   String restLocation;
    String[] sourceSuffix;
    // JQL used to list all JIRAs here
    String sampleJQL;
+   String[] currentJiras;
 
    final HashSet<String> totalJiras = new HashSet<>();
 
@@ -101,6 +109,15 @@ public class GitParser {
       return this;
    }
 
+   public String getRestLocation() {
+      return restLocation;
+   }
+
+   public GitParser setRestLocation(String restLocation) {
+      this.restLocation = restLocation;
+      return this;
+   }
+
    private String makeALink(String text, String uri) {
       return "<a href='" + uri + "'>" + text + "</a>";
    }
@@ -132,10 +149,10 @@ public class GitParser {
    }
 
    public String prettyCommitMessage(String message) {
-      String[] jiras = extractJIRAs(jira, message);
-      for (int i = 0; i < jiras.length; i++) {
-         totalJiras.add(jiras[i]);
-         message = message.replace(jiras[i], makeALink(jiras[i], jiraBrowseURI + jiras[i]));
+      currentJiras = extractJIRAs(jira, message);
+      for (int i = 0; i < currentJiras.length; i++) {
+         totalJiras.add(currentJiras[i]);
+         message = message.replace(currentJiras[i], makeALink(currentJiras[i], jiraBrowseURI + currentJiras[i]));
       }
 
       return message;
@@ -157,6 +174,35 @@ public class GitParser {
       }
 
       return new String(out.toByteArray());
+   }
+
+   JsonObject lastJIRAObject;
+   String lastJIRA;
+
+   private JsonObject restJIRA(String JIRA) throws Exception {
+
+      System.out.println("Inspecting " + JIRA);
+      if (lastJIRA != null && lastJIRA.equals(JIRA)) {
+         return lastJIRAObject;
+      }
+      if (restLocation != null) {
+         URL url = new URL(restLocation + JIRA);
+         InputStream stream = url.openStream();
+
+         lastJIRA = JIRA;
+         lastJIRAObject = Json.createReader(stream).readObject();
+         return lastJIRAObject;
+      }
+      return null;
+   }
+
+   private String getField(JsonObject object, String name) {
+
+      try {
+         return object.getJsonObject("fields").getJsonObject(name).getString("name");
+      } catch (Throwable e) {
+         return " ";
+      }
    }
 
    public void parse(PrintStream output, String from, String to) throws Exception {
@@ -196,7 +242,7 @@ public class GitParser {
 
       StringBuffer interestingChanges[] = new StringBuffer[interestingFolder.size()];
 
-      output.print("<thead><tr><th>#</th><th>Commit</th><th>Date</th><th>Author</th><th>Short Message</th><th>Adds</th><th>Updates</th><th>Deletes</th>");
+      output.print("<thead><tr><th>#</th><th>Commit</th><th>Date</th><th>Author</th><th>Short Message</th><th>Jira Status</th><th>Adds</th><th>Updates</th><th>Deletes</th>");
 
       for (int i = 0; i < interestingFolder.size(); i++) {
          output.print("<th>" + interestingFolder.get(i) + "</th>");
@@ -224,6 +270,29 @@ public class GitParser {
          output.print("<td>" + dateFormat.format(commit.getAuthorIdent().getWhen()) + "</td>");
          output.print("<td>" + commit.getAuthorIdent().getName() + "</td>");
          output.print("<td>" + prettyCommitMessage(commit.getShortMessage()) + "</td>");
+
+         StringBuffer bufferJIRA = new StringBuffer();
+         if (currentJiras != null) {
+            for (int i = 0; i < currentJiras.length; i++) {
+
+               String jiraIteration = currentJiras[i];
+               if (restLocation != null) {
+                  JsonObject object = restJIRA(jiraIteration);
+                  String issuetype = getField(object, "issuetype");
+                  String status = getField(object, "status");
+                  String resolution = getField(object, "resolution");
+                  bufferJIRA.append(makeALink(issuetype + "/" + resolution + "/" + status, jiraBrowseURI + jiraIteration));
+               } else {
+                  bufferJIRA.append(makeALink(jiraIteration, jiraBrowseURI + jiraIteration));
+               }
+
+               if (i < currentJiras.length -1) {
+                  bufferJIRA.append(",");
+               }
+            }
+
+         }
+         output.println("<td>" + bufferJIRA.toString() + "</td>");
 
          oldTreeIter.reset(reader, commit.getParent(0).getTree());
          newTreeIter.reset(reader, commit.getTree());

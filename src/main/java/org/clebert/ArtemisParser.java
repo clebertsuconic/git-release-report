@@ -29,14 +29,21 @@ public class ArtemisParser {
 
    public static void main(String arg[]) {
       try {
-         if (arg.length < 4) {
-            System.err.println("use Parser <repository> <reportOutput> <from> <to>");
+         if (arg.length != 5) {
+            System.err.println("use Parser <repository> <reportOutput> <from> <to> <rest : true|false>");
             System.exit(-1);
          }
+
+         boolean rest = Boolean.parseBoolean(arg[4]);
 
          GitParser parser = new GitParser(new File(arg[0]), "ARTEMIS-", "https://issues.apache.org/jira/browse/", "https://github.com/apache/activemq-artemis/").
             setSourceSuffix(".java", ".md", ".c", ".sh", ".groovy").
             setSampleJQL("https://issues.apache.org/jira/issues/?jql=project%20%3D%20ARTEMIS%20AND%20key%20in%20");
+
+         if (rest) {
+            parser.setRestLocation("https://issues.apache.org/jira/rest/api/2/issue/");
+         }
+
          parser.addInterestingfolder("test").addInterestingfolder("docs/").addInterestingfolder("examples/");
          PrintStream stream = new PrintStream(new FileOutputStream(arg[1]));
          parser.parse(stream, arg[2], arg[3]);
