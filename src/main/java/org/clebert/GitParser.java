@@ -192,7 +192,7 @@ public class GitParser {
 
       output.println("<table id=\"gitreport\" class=\"display\">");
 
-      DateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm:ss");
+      DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 
       StringBuffer interestingChanges[] = new StringBuffer[interestingFolder.size()];
 
