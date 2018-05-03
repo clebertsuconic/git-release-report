@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.clebert;
+package org.redhat.gitparser;
 
 import java.io.File;
 

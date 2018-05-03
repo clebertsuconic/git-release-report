@@ -1,4 +1,4 @@
-package org.clebert;
+package org.redhat.gitparser;
 
 /**
  * Hello world!

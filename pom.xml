@@ -88,7 +88,7 @@
           <configuration>
             <archive>
               <manifest>
-                <mainClass>org.clebert.ArtemisParser</mainClass>
+                <mainClass>org.redhat.gitparser.ArtemisParser</mainClass>
               </manifest>
             </archive>
             <descriptorRefs>

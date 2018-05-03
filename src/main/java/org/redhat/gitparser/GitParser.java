@@ -15,11 +15,10 @@
  * limitations under the License.
  */
 
-package org.clebert;
+package org.redhat.gitparser;
 
 import javax.json.Json;
 import javax.json.JsonObject;
-import javax.json.JsonString;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -51,8 +50,6 @@ import org.eclipse.jgit.revwalk.filter.RevFilter;
 import org.eclipse.jgit.treewalk.AbstractTreeIterator;
 import org.eclipse.jgit.treewalk.CanonicalTreeParser;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
-
-import org.apache.johnzon.core.*;
 
 /**
  * @author Clebert Suconic
