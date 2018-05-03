@@ -186,11 +186,17 @@ public class GitParser {
          return lastJIRAObject;
       }
       if (restLocation != null) {
-         URL url = new URL(restLocation + JIRA);
-         InputStream stream = url.openStream();
+         try {
+            URL url = new URL(restLocation + JIRA);
+            InputStream stream = url.openStream();
 
-         lastJIRA = JIRA;
-         lastJIRAObject = Json.createReader(stream).readObject();
+            lastJIRA = JIRA;
+            lastJIRAObject = Json.createReader(stream).readObject();
+         } catch (Throwable e) {
+            e.printStackTrace();
+            lastJIRAObject = null;
+            lastJIRA = null;
+         }
          return lastJIRAObject;
       }
       return null;
@@ -242,7 +248,7 @@ public class GitParser {
 
       StringBuffer interestingChanges[] = new StringBuffer[interestingFolder.size()];
 
-      output.print("<thead><tr><th>#</th><th>Commit</th><th>Date</th><th>Author</th><th>Short Message</th><th>Jira Status</th><th>Adds</th><th>Updates</th><th>Deletes</th>");
+      output.print("<thead><tr><th>#</th><th>Commit</th><th>Date</th><th>Author</th><th>Short Message</th><th>Jira Status</th><th>Add</th><th>Rep</th><th>Del</th><th>Tot</th>");
 
       for (int i = 0; i < interestingFolder.size(); i++) {
          output.print("<th>" + interestingFolder.get(i) + "</th>");
@@ -276,8 +282,12 @@ public class GitParser {
             for (int i = 0; i < currentJiras.length; i++) {
 
                String jiraIteration = currentJiras[i];
+               JsonObject object = null;
                if (restLocation != null) {
-                  JsonObject object = restJIRA(jiraIteration);
+                  object = restJIRA(jiraIteration);
+               }
+               // it could happen the object is returning null for security or something else
+               if (object != null) {
                   String issuetype = getField(object, "issuetype");
                   String status = getField(object, "status");
                   String resolution = getField(object, "resolution");
@@ -377,7 +387,7 @@ public class GitParser {
                }
             }
          }
-         output.print("<td>" + addition + "</td><td>" + replacement + "</td><td>" + deletion + "</td>");
+         output.print("<td>" + addition + "</td><td>" + replacement + "</td><td>" + deletion + "</td><td>" + (addition + replacement - deletion) + "</td>");
 
          for (int i = 0; i < interestingChanges.length; i++) {
             output.print("<td>" + interestingChanges[i].toString() + "</td>");
