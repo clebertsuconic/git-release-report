@@ -36,7 +36,7 @@ public class WildflyParser {
 
          GitParser parser = new GitParser(new File(arg[0]), "WFLY-", "https://issues.jboss.org/browse/", "https://github.com/wildfly/wildfly/").
             setSourceSuffix(".java", ".md", ".c", ".sh", ".groovy", ".adoc").
-            setSampleJQL("https://issues.jboss.org/browse/WFLY-1?jql=project%20%3D%20WildFly%20AND%20KEY%20IN");
+            setSampleJQL("https://issues.jboss.org/issues/?jql=project%20%3D%20WildFly%20AND%20KEY%20IN");
          parser.addInterestingfolder("test").addInterestingfolder("docs/");
          PrintStream stream = new PrintStream(new FileOutputStream(arg[1]));
 
