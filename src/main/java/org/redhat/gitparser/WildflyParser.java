@@ -38,11 +38,12 @@ public class WildflyParser {
             setSourceSuffix(".java", ".md", ".c", ".sh", ".groovy", ".adoc").
             setSampleJQL("https://issues.jboss.org/issues/?jql=project%20%3D%20WildFly%20AND%20KEY%20IN");
          parser.addInterestingfolder("test").addInterestingfolder("docs/");
-         PrintStream stream = new PrintStream(new FileOutputStream(arg[1]));
+
+         File file = new File(arg[1]);
 
          parser.setRestLocation("https://issues.jboss.org/rest/api/2/issue/");
 
-         parser.parse(stream, arg[2], arg[3]);
+         parser.parse(file, arg[2], arg[3]);
 
       } catch (Exception e) {
          e.printStackTrace();

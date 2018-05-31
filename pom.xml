@@ -5,10 +5,10 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>org.clebert</groupId>
-  <artifactId>gitparser</artifactId>
+  <artifactId>git-release-report</artifactId>
   <version>0.1.SNAPSHOT</version>
 
-  <name>gitparser</name>
+  <name>git-release-report</name>
   <!-- FIXME change it to the project's website -->
   <url>http://www.example.com</url>
 

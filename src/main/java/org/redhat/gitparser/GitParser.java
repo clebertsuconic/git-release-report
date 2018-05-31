@@ -21,6 +21,7 @@ import javax.json.Json;
 import javax.json.JsonObject;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -207,8 +208,28 @@ public class GitParser {
          return " ";
       }
    }
+   private void copy(String name, File directory) throws Exception {
+      directory.mkdirs();
+      InputStream stream = this.getClass().getResourceAsStream(name);
+      File file = new File(directory, name);
+      copy(stream, new FileOutputStream(file));
+   }
 
-   public void parse(PrintStream output, String from, String to) throws Exception {
+   public void parse(File outputFile, String from, String to) throws Exception {
+
+      PrintStream output = new PrintStream(new FileOutputStream(outputFile));
+
+      File styleDirectory = new File(outputFile.getParent(), "styles");
+      File imageDirectory = new File(outputFile.getParent(), "images");
+
+      copy("framework.css", styleDirectory);
+      copy("jquery.dataTables.min.css", styleDirectory);
+      copy("jquery.dataTables.min.js", styleDirectory);
+      copy("jquery.min.js", styleDirectory);
+
+      copy("sort_both.png", imageDirectory);
+      copy("sort_asc.png", imageDirectory);
+      copy("sort_desc.png", imageDirectory);
       Git git = Git.open(folder);
       RevWalk walk = new RevWalk(git.getRepository());
 

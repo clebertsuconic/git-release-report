@@ -45,8 +45,8 @@ public class ArtemisParser {
          }
 
          parser.addInterestingfolder("test").addInterestingfolder("docs/").addInterestingfolder("examples/");
-         PrintStream stream = new PrintStream(new FileOutputStream(arg[1]));
-         parser.parse(stream, arg[2], arg[3]);
+         File file = new File(arg[1]);
+         parser.parse(file, arg[2], arg[3]);
 
       } catch (Exception e) {
          e.printStackTrace();
