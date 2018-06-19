@@ -309,7 +309,8 @@ public class GitParser {
                   String issuetype = getField(object, "issuetype");
                   String status = getField(object, "status");
                   String resolution = getField(object, "resolution");
-                  bufferJIRA.append(makeALink(issuetype + "/" + resolution + "/" + status, jiraBrowseURI + jiraIteration));
+                  String priority = getField(object, "priority");
+                  bufferJIRA.append(makeALink(priority + "/" + issuetype + "/" + resolution + "/" + status, jiraBrowseURI + jiraIteration));
                } else {
                   bufferJIRA.append(makeALink(jiraIteration, jiraBrowseURI + jiraIteration));
                }
